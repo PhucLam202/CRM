@@ -31,6 +31,7 @@ import { AddEditModal } from '@gitroom/frontend/components/new-launch/add.edit.m
 import dayjs from 'dayjs';
 import { ModalWrapperComponent } from '@gitroom/frontend/components/new-launch/modal.wrapper.component';
 import copy from 'copy-to-clipboard';
+import { Button } from '@gitroom/react/form/button';
 
 export const Menu: FC<{
   canEnable: boolean;
@@ -245,6 +246,86 @@ export const Menu: FC<{
     [integrations]
   );
 
+  const syncPosts = useCallback(
+    (integration: Integrations) => async () => {
+      setShow(false);
+
+      const days = await new Promise<30 | 60 | false>((resolve) => {
+        modal.openModal({
+          title: '',
+          withCloseButton: false,
+          closeOnClickOutside: true,
+          closeOnEscape: true,
+          onClose: () => resolve(false),
+          children: (close) => (
+            <ModalWrapperComponent
+              title={t('sync_posts', 'Sync posts')}
+              customClose={close}
+            >
+              <div className="flex flex-col gap-[16px]">
+                <div className="text-[14px] text-textColor/80">
+                  {t(
+                    'sync_x_posts_description',
+                    'Import published X posts from the last 30 or 60 days.'
+                  )}
+                </div>
+                <div className="flex gap-[10px]">
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      modal.closeAll();
+                      resolve(30);
+                    }}
+                  >
+                    30 days
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      modal.closeAll();
+                      resolve(60);
+                    }}
+                  >
+                    60 days
+                  </Button>
+                </div>
+              </div>
+            </ModalWrapperComponent>
+          ),
+        });
+      });
+
+      if (!days) {
+        return;
+      }
+
+      const result = await fetch(`/integrations/${integration.id}/sync-posts`, {
+        method: 'POST',
+        body: JSON.stringify({ days }),
+      });
+
+      const data = await result.json();
+
+      if (!result.ok) {
+        toast.show(
+          data?.message || t('sync_failed', 'Sync failed'),
+          'warning'
+        );
+        return;
+      }
+
+      toast.show(
+        t(
+          'sync_completed',
+          `Synced ${data.imported || 0} posts from X`
+        ),
+        'success'
+      );
+      reloadCalendarView();
+    },
+    [fetch, modal, reloadCalendarView, t, toast]
+  );
+
   const changeBotPicture = useCallback(() => {
     const findIntegration = integrations.find(
       (integration) => integration.id === id
@@ -358,6 +439,32 @@ export const Menu: FC<{
           style={{ left: show.x, top: show.y }}
           className={`fixed p-[12px] bg-newBgColorInner shadow-menu flex flex-col gap-[16px] z-[100] rounded-[8px] border border-tableBorder text-nowrap`}
         >
+          {findIntegration?.identifier === 'x' &&
+            !findIntegration?.disabled &&
+            !findIntegration?.refreshNeeded && (
+            <div
+              className="flex gap-[12px] items-center py-[8px] px-[10px]"
+              onClick={syncPosts(findIntegration)}
+            >
+              <div>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <path
+                    d="M12 3v4m0 10v4M7 12H3m18 0h-4M8.5 8.5 6 6m10 10 2.5 2.5M15.5 8.5 18 6M8.5 15.5 6 18"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </div>
+              <div className="text-[14px]">{t('sync_posts', 'Sync posts')}</div>
+            </div>
+          )}
           {canDisable && !findIntegration?.refreshNeeded && (
             <div
               className="flex gap-[12px] items-center py-[8px] px-[10px]"

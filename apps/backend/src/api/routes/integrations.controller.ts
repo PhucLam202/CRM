@@ -1,5 +1,6 @@
 import {
   Body,
+  BadRequestException,
   Controller,
   Delete,
   Get,
@@ -83,6 +84,19 @@ export class IntegrationsController {
     @Body() body: { name: string }
   ) {
     return this._integrationService.updateOnCustomerName(org.id, id, body.name);
+  }
+
+  @Post('/:id/sync-posts')
+  async syncPosts(
+    @GetOrgFromRequest() org: Organization,
+    @Param('id') id: string,
+    @Body() body: { days: number }
+  ) {
+    if (![30, 60].includes(body?.days)) {
+      throw new BadRequestException('Days must be 30 or 60');
+    }
+
+    return this._postService.syncIntegrationPosts(org.id, id, body.days);
   }
 
   @Get('/list')
@@ -249,6 +263,10 @@ export class IntegrationsController {
 
       return { url };
     } catch (err) {
+      console.error(
+        `Failed to generate auth URL for integration "${integration}":`,
+        err
+      );
       return { err: true };
     }
   }

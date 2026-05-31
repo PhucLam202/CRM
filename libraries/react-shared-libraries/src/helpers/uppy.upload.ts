@@ -15,7 +15,21 @@ const fetchUploadApiEndpoint = async (
       'Content-Type': 'application/json',
     },
   });
-  return res.json();
+  const text = await res.text();
+
+  if (!res.ok) {
+    throw new Error(text || `Upload request failed for ${endpoint}`);
+  }
+
+  if (!text) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
 };
 
 // Define the factory to return appropriate Uppy configuration

@@ -933,7 +933,7 @@ export const CalendarColumn: FC<{
                   {integrations.map((selectedIntegrations) => (
                     <div
                       className="relative"
-                      key={selectedIntegrations.identifier}
+                      key={selectedIntegrations.id}
                     >
                       <div
                         className={clsx(

@@ -34,6 +34,7 @@ export interface IAuthenticator {
     postId: string,
     fromDate: number,
   ): Promise<AnalyticsData[]>;
+  syncPosts?(integration: Integration, days: number): Promise<SyncedPost[]>;
   changeNickname?(
     id: string,
     accessToken: string,
@@ -55,6 +56,13 @@ export interface AnalyticsData {
   data: Array<{ total: string; date: string }>;
   percentageChange: number;
 }
+
+export type SyncedPost = {
+  releaseId: string;
+  releaseURL: string;
+  content: string;
+  publishDate: string;
+};
 
 
 export type GenerateAuthUrlResponse = {

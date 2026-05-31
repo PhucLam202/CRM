@@ -193,6 +193,8 @@ export function useUppyUploader(props: {
       });
     });
     uppy2.on('error', (result) => {
+      const message = result instanceof Error ? result.message : 'Upload failed';
+      uppy2.info(message, 'error', 5000);
       uppy2.clear();
       setLocked(false);
       props.onEnd();
@@ -203,13 +205,15 @@ export function useUppyUploader(props: {
     });
     uppy2.on('complete', async (result) => {
       console.log(result);
-      for (const file of [...result.successful]) {
+      const successful = result?.successful ?? [];
+
+      for (const file of [...successful]) {
         uppy2.removeFile(file.id);
       }
 
       props.onEnd();
       // Sort results by original add order to maintain file sequence
-      const sortedSuccessful = [...result.successful].sort((a, b) => {
+      const sortedSuccessful = [...successful].sort((a, b) => {
         const orderA = +((a.meta as any)?.addedOrder ?? 0);
         const orderB = +((b.meta as any)?.addedOrder ?? 0);
         return orderA - orderB;
@@ -222,9 +226,10 @@ export function useUppyUploader(props: {
         return;
       }
 
-      if (transloadit.length > 0) {
-        // @ts-ignore
-        const allRes = result.transloadit[0].results;
+      const transloaditResults = (result as any)?.transloadit?.[0]?.results;
+
+      if (transloadit.length > 0 && transloaditResults) {
+        const allRes = transloaditResults;
         const toSave = uniqBy<{ name: string; originalName: string; order: number }>(
           // @ts-ignore
           Object.values(allRes).flatMap((p: any[]) => {
@@ -269,12 +274,18 @@ export function useUppyUploader(props: {
       onUploadSuccess(sortedSuccessful.map((p) => p.response.body.saved));
     });
     uppy2.on('upload-success', (file, response) => {
+      const uploadURL = response?.body?.Location;
+
+      if (!uploadURL) {
+        return;
+      }
+
       // @ts-ignore
       uppy2.setFileState(file.id, {
         // @ts-ignore
         progress: uppy2.getState().files[file.id].progress,
         // @ts-ignore
-        uploadURL: response.body.Location,
+        uploadURL,
         response: response,
         isPaused: false,
       });

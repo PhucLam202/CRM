@@ -5,6 +5,7 @@ import {
   AuthTokenDetails,
   PostDetails,
   PostResponse,
+  SyncedPost,
   SocialProvider,
 } from '@gitroom/nestjs-libraries/integrations/social/social.integrations.interface';
 import { lookup } from 'mime-types';
@@ -623,6 +624,53 @@ export class XProvider extends SocialAbstract implements SocialProvider {
         : []),
     ];
   };
+
+  private async loadRecentTweets(
+    client: TwitterApi,
+    id: string,
+    since: string,
+    token = ''
+  ): Promise<Array<{ id: string; text?: string; created_at?: string }>> {
+    const tweets = await client.v2.userTimeline(id, {
+      'tweet.fields': ['created_at', 'text'],
+      exclude: ['replies', 'retweets'],
+      start_time: since,
+      max_results: 100,
+      ...(token ? { pagination_token: token } : {}),
+    } as any);
+
+    return [
+      ...(tweets.data.data || []),
+      ...(tweets.meta?.next_token
+        ? await this.loadRecentTweets(client, id, since, tweets.meta.next_token)
+        : []),
+    ];
+  }
+
+  async syncPosts(integration: Integration, days: number): Promise<SyncedPost[]> {
+    const client = await this.getClient(integration.token);
+    const { data: me } = await client.v2.me({ 'user.fields': ['username'] });
+    const username = me.username;
+    const since = dayjs().subtract(days, 'day').toISOString();
+
+    const tweets = await this.loadRecentTweets(
+      client,
+      integration.internalId,
+      since
+    );
+
+    return tweets
+      .filter((tweet) => tweet?.id && tweet?.text)
+      .map((tweet) => ({
+        releaseId: tweet.id,
+        releaseURL: `https://twitter.com/${username}/status/${tweet.id}`,
+        content: tweet.text || '',
+        publishDate: tweet.created_at || dayjs().toISOString(),
+      }))
+      .sort(
+        (a, b) => dayjs(a.publishDate).valueOf() - dayjs(b.publishDate).valueOf()
+      );
+  }
 
   async analytics(
     id: string,

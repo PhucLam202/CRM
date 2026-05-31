@@ -81,6 +81,51 @@ export class PostsService {
     return this._postRepository.updatePost(id, postId, releaseURL);
   }
 
+  async syncIntegrationPosts(orgId: string, integrationId: string, days: number) {
+    const integration = await this._integrationService.getIntegrationById(
+      orgId,
+      integrationId
+    );
+
+    if (!integration || integration.providerIdentifier !== 'x') {
+      throw new BadRequestException('Integration not found');
+    }
+
+    const provider = this._integrationManager.getSocialIntegration(
+      integration.providerIdentifier
+    );
+
+    if (!provider.syncPosts) {
+      throw new BadRequestException('Sync is not available for this channel');
+    }
+
+    let currentIntegration = integration;
+    if (
+      currentIntegration.tokenExpiration &&
+      dayjs(currentIntegration.tokenExpiration).isBefore(dayjs())
+    ) {
+      const refreshed = await this._refreshIntegrationService.refresh(
+        currentIntegration
+      );
+
+      if (!refreshed || !refreshed.accessToken) {
+        throw new BadRequestException('Unable to refresh X account');
+      }
+
+      currentIntegration = {
+        ...currentIntegration,
+        token: refreshed.accessToken,
+      };
+    }
+
+    const posts = await provider.syncPosts(currentIntegration, days);
+    return this._postRepository.syncPublishedPosts(
+      orgId,
+      currentIntegration.id,
+      posts
+    );
+  }
+
   async getMissingContent(
     orgId: string,
     postId: string,

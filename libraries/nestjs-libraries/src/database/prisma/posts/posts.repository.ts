@@ -398,6 +398,86 @@ export class PostsRepository {
     });
   }
 
+  async syncPublishedPosts(
+    orgId: string,
+    integrationId: string,
+    posts: Array<{
+      releaseId: string;
+      releaseURL: string;
+      content: string;
+      publishDate: string;
+    }>
+  ) {
+    const normalizedPosts = posts.filter((post) => post.releaseId);
+    if (!normalizedPosts.length) {
+      return {
+        imported: 0,
+        skipped: 0,
+        total: 0,
+      };
+    }
+
+    const existingPosts = await this._post.model.post.findMany({
+      where: {
+        organizationId: orgId,
+        integrationId,
+        releaseId: {
+          in: normalizedPosts.map((post) => post.releaseId),
+        },
+        deletedAt: null,
+      },
+      select: {
+        releaseId: true,
+      },
+    });
+
+    const existingReleaseIds = new Set(
+      existingPosts.map((post) => post.releaseId).filter(Boolean)
+    );
+    let imported = 0;
+    let skipped = 0;
+
+    for (const post of normalizedPosts) {
+      if (existingReleaseIds.has(post.releaseId)) {
+        skipped += 1;
+        continue;
+      }
+
+      await this._post.model.post.create({
+        data: {
+          state: 'PUBLISHED',
+          publishDate: dayjs.utc(post.publishDate).toDate(),
+          organization: {
+            connect: {
+              id: orgId,
+            },
+          },
+          integration: {
+            connect: {
+              id: integrationId,
+            },
+          },
+          content: post.content,
+          delay: 0,
+          group: uuidv4(),
+          releaseId: post.releaseId,
+          releaseURL: post.releaseURL,
+          settings: JSON.stringify({ __type: 'x' }),
+          image: '[]',
+          creationMethod: CreationMethod.API,
+        },
+      });
+
+      imported += 1;
+    }
+
+    return {
+      imported,
+      skipped,
+      total: normalizedPosts.length,
+    };
+  }
+
   updateReleaseId(id: string, orgId: string, releaseId: string) {
     return this._post.model.post.update({
       where: {
