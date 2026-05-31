@@ -133,7 +133,7 @@ services:
     networks:
       - temporal-network
     ports:
-      - "8080:8080"
+      - "8083:8080"
 
 volumes:
   redisinsight:

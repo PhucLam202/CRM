@@ -297,6 +297,7 @@ export const ContinueIntegration: FC<{
                 `Your ${providerDisplayName} channel has been successfully connected. You can close this window now.`
               )}
           </div>
+          <Redirect url="/launches" delay={3000} />
         </div>
       </div>
     );

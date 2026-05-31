@@ -42,9 +42,11 @@ async function start() {
       ],
       origin: [
         process.env.FRONTEND_URL,
+        process.env.MAIN_URL,
+        'http://localhost:8080',
+        'http://127.0.0.1:8080',
         'http://localhost:6274',
-        ...(process.env.MAIN_URL ? [process.env.MAIN_URL] : []),
-      ],
+      ].filter(Boolean),
     },
   });
 
