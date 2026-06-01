@@ -317,7 +317,9 @@ export const Menu: FC<{
       toast.show(
         t(
           'sync_completed',
-          `Synced ${data.imported || 0} posts from X`
+          `Synced ${data.imported || 0} posts from X${
+            data.analyticsInvalidated ? ' and refreshed analytics data' : ''
+          }`
         ),
         'success'
       );

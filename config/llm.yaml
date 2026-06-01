@@ -1,0 +1,23 @@
+defaultProvider: deepseek
+
+providers:
+  deepseek:
+    type: openai-compatible
+    baseUrl: https://api.deepseek.com/v1
+    apiKeyEnv: DEEPSEEK_API_KEY
+    models:
+      growthInsights: deepseek-chat
+
+  minimax:
+    type: openai-compatible
+    baseUrl: https://api.minimax.io/v1
+    apiKeyEnv: MINIMAX_API_KEY
+    models:
+      growthInsights: MiniMax-M1
+
+  openai:
+    type: openai-compatible
+    baseUrl: https://api.openai.com/v1
+    apiKeyEnv: OPENAI_API_KEY
+    models:
+      growthInsights: gpt-4.1

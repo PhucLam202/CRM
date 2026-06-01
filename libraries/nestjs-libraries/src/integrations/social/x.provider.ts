@@ -707,55 +707,109 @@ export class XProvider extends SocialAbstract implements SocialProvider {
         return [];
       }
 
-      const data = await client.v2.tweets(
-        tweets.map((p) => p.id),
-        {
-          'tweet.fields': ['public_metrics'],
+      const data = await client.v2.tweets(tweets.map((p) => p.id), {
+        'tweet.fields': ['public_metrics', 'created_at'],
+      });
+
+      type MetricKey =
+        | 'impression_count'
+        | 'bookmark_count'
+        | 'like_count'
+        | 'quote_count'
+        | 'reply_count'
+        | 'retweet_count';
+
+      interface DailyMetricTotals {
+        impression_count: number;
+        bookmark_count: number;
+        like_count: number;
+        quote_count: number;
+        reply_count: number;
+        retweet_count: number;
+      }
+
+      const metricKeys: MetricKey[] = [
+        'impression_count',
+        'bookmark_count',
+        'like_count',
+        'quote_count',
+        'reply_count',
+        'retweet_count',
+      ];
+
+      const metricLabels: Record<MetricKey, string> = {
+        impression_count: 'Impressions',
+        bookmark_count: 'Bookmarks',
+        like_count: 'Likes',
+        quote_count: 'Quotes',
+        reply_count: 'Replies',
+        retweet_count: 'Retweets',
+      };
+
+      const emptyDailyTotals = (): DailyMetricTotals => ({
+        impression_count: 0,
+        bookmark_count: 0,
+        like_count: 0,
+        quote_count: 0,
+        reply_count: 0,
+        retweet_count: 0,
+      });
+
+      const byDate = new Map<string, DailyMetricTotals>();
+
+      data.data.forEach((tweet: TweetV2) => {
+        if (!tweet.public_metrics) {
+          return;
         }
-      );
 
-      const metrics = data.data.reduce(
-        (all, current) => {
-          all.impression_count =
-            (all.impression_count || 0) +
-            +current.public_metrics.impression_count;
-          all.bookmark_count =
-            (all.bookmark_count || 0) + +current.public_metrics.bookmark_count;
-          all.like_count =
-            (all.like_count || 0) + +current.public_metrics.like_count;
-          all.quote_count =
-            (all.quote_count || 0) + +current.public_metrics.quote_count;
-          all.reply_count =
-            (all.reply_count || 0) + +current.public_metrics.reply_count;
-          all.retweet_count =
-            (all.retweet_count || 0) + +current.public_metrics.retweet_count;
+        const bucketDate = dayjs(tweet.created_at || until.toISOString()).format('YYYY-MM-DD');
+        const bucket = byDate.get(bucketDate) || emptyDailyTotals();
 
-          return all;
-        },
-        {
-          impression_count: 0,
-          bookmark_count: 0,
-          like_count: 0,
-          quote_count: 0,
-          reply_count: 0,
-          retweet_count: 0,
+        bucket.impression_count += tweet.public_metrics.impression_count || 0;
+        bucket.bookmark_count += tweet.public_metrics.bookmark_count || 0;
+        bucket.like_count += tweet.public_metrics.like_count || 0;
+        bucket.quote_count += tweet.public_metrics.quote_count || 0;
+        bucket.reply_count += tweet.public_metrics.reply_count || 0;
+        bucket.retweet_count += tweet.public_metrics.retweet_count || 0;
+
+        byDate.set(bucketDate, bucket);
+      });
+
+      const dates: string[] = [];
+      let cursor = since.startOf('day');
+      const lastDay = until.startOf('day');
+
+      while (cursor.isBefore(lastDay) || cursor.isSame(lastDay, 'day')) {
+        dates.push(cursor.format('YYYY-MM-DD'));
+        cursor = cursor.add(1, 'day');
+      }
+
+      const buildSeries = (key: MetricKey) =>
+        dates.map((dateKey) => ({
+          total: String(byDate.get(dateKey)?.[key] || 0),
+          date: dateKey,
+        }));
+
+      const buildChange = (series: Array<{ total: string; date: string }>) => {
+        const current = Number(series.at(-1)?.total || 0);
+        const previous = Number(series.at(-2)?.total || 0);
+
+        if (previous === 0) {
+          return current > 0 ? 100 : 0;
         }
-      );
 
-      return Object.entries(metrics).map(([key, value]) => ({
-        label: key.replace('_count', '').replace('_', ' ').toUpperCase(),
-        percentageChange: 5,
-        data: [
-          {
-            total: String(0),
-            date: since.format('YYYY-MM-DD'),
-          },
-          {
-            total: String(value),
-            date: until.format('YYYY-MM-DD'),
-          },
-        ],
-      }));
+        return ((current - previous) / previous) * 100;
+      };
+
+      return metricKeys.map((key) => {
+        const series = buildSeries(key);
+
+        return {
+          label: metricLabels[key],
+          percentageChange: buildChange(series),
+          data: series,
+        };
+      });
     } catch (err) {
       console.log(err);
     }

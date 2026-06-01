@@ -1,142 +1,225 @@
 'use client';
 
 import { FC, useEffect, useMemo, useRef } from 'react';
-import DrawChart from 'chart.js/auto';
-import { TotalList } from '@gitroom/frontend/components/analytics/stars.and.forks.interface';
-import { chunk } from 'lodash';
+import {
+  Chart as ChartJS,
+  type ChartConfiguration,
+  type TooltipItem,
+} from 'chart.js';
+import 'chart.js/auto';
+import dayjs from 'dayjs';
 import useCookie from 'react-use-cookie';
+import { TotalList } from '@gitroom/frontend/components/analytics/stars.and.forks.interface';
 
-function mergeDataPoints(data: TotalList[], numPoints: number): TotalList[] {
-  const res = chunk(data, Math.ceil(data.length / numPoints));
-  return res.map((row) => {
-    return {
-      date: `${row[0].date} - ${row?.at(-1)?.date}`,
-      total: row.reduce((acc, curr) => acc + curr.total, 0),
-    };
-  });
+type ChartColor = 'purple' | 'green' | 'blue';
+type ChartMode = 'auto' | 'line' | 'bar';
+
+interface ChartSocialProps {
+  data: TotalList[];
+  color?: ChartColor;
+  mode?: ChartMode;
+  datasetLabel?: string;
+  height?: number;
+  maxTicks?: number;
+  showLegend?: boolean;
 }
 
-export const ChartSocial: FC<{
-  data: TotalList[];
-  color?: 'purple' | 'green' | 'blue';
-}> = (props) => {
-  const { data, color = 'purple' } = props;
-  const [mode] = useCookie('mode', 'dark');
-  const list = useMemo(() => {
-    return mergeDataPoints(data, 7);
-  }, [data]);
-  const ref = useRef<any>(null);
-  const chart = useRef<null | DrawChart>(null);
+const colorSchemes = {
+  purple: {
+    border: 'rgb(97, 43, 211)',
+    soft: 'rgba(97, 43, 211, 0.18)',
+  },
+  green: {
+    border: 'rgb(50, 213, 131)',
+    soft: 'rgba(50, 213, 131, 0.18)',
+  },
+  blue: {
+    border: 'rgb(29, 155, 240)',
+    soft: 'rgba(29, 155, 240, 0.18)',
+  },
+} satisfies Record<ChartColor, { border: string; soft: string }>;
 
-  const colorSchemes = {
-    purple: {
-      start: 'rgba(97, 43, 211, 0.8)',
-      end: 'rgba(97, 43, 211, 0.1)',
-      border: 'rgb(97, 43, 211)',
-    },
-    green: {
-      start: 'rgba(50, 213, 131, 0.8)',
-      end: 'rgba(50, 213, 131, 0.1)',
-      border: 'rgb(50, 213, 131)',
-    },
-    blue: {
-      start: 'rgba(29, 155, 240, 0.8)',
-      end: 'rgba(29, 155, 240, 0.1)',
-      border: 'rgb(29, 155, 240)',
-    },
-  };
+const compactNumber = new Intl.NumberFormat(undefined, {
+  notation: 'compact',
+  maximumFractionDigits: 1,
+});
+
+function normalizeSeries(data: TotalList[], maxPoints: number): TotalList[] {
+  if (data.length <= maxPoints) {
+    return data;
+  }
+
+  const groupSize = Math.ceil(data.length / maxPoints);
+  const result: TotalList[] = [];
+
+  for (let index = 0; index < data.length; index += groupSize) {
+    const slice = data.slice(index, index + groupSize);
+    if (!slice.length) {
+      continue;
+    }
+
+    result.push({
+      date: `${slice[0].date} - ${slice[slice.length - 1].date}`,
+      total: slice.reduce((accumulator, current) => accumulator + current.total, 0),
+    });
+  }
+
+  return result;
+}
+
+function resolveChartType(mode: ChartMode, data: TotalList[]): 'line' | 'bar' {
+  if (mode !== 'auto') {
+    return mode;
+  }
+
+  const maxValue = data.reduce((maximum, row) => Math.max(maximum, row.total), 0);
+  return maxValue <= 10 || data.length <= 3 ? 'bar' : 'line';
+}
+
+export const ChartSocial: FC<ChartSocialProps> = ({
+  data,
+  color = 'purple',
+  mode = 'auto',
+  datasetLabel = 'Total',
+  height = 120,
+  maxTicks = 6,
+  showLegend = false,
+}) => {
+  const [theme] = useCookie('mode', 'dark');
+  const series = useMemo(() => normalizeSeries(data, maxTicks), [data, maxTicks]);
+  const resolvedMode = useMemo(() => resolveChartType(mode, series), [mode, series]);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const chartRef = useRef<ChartJS | null>(null);
 
   const colors = colorSchemes[color];
 
   useEffect(() => {
-    const ctx = ref.current.getContext('2d');
-    const gradient = ctx.createLinearGradient(0, 0, 0, ref.current.height);
-    gradient.addColorStop(0, colors.start);
-    gradient.addColorStop(1, colors.end);
+    if (!canvasRef.current) {
+      return;
+    }
 
-    chart.current = new DrawChart(ref.current!, {
-      type: 'line',
+    chartRef.current?.destroy();
+
+    const context = canvasRef.current.getContext('2d');
+    if (!context) {
+      return;
+    }
+
+    const configuration: ChartConfiguration<'line' | 'bar', number[], string> = {
+      type: resolvedMode,
+      data: {
+        labels: series.map((row) => dayjs(row.date.split(' - ')[0]).format('MMM D')),
+        datasets: [
+          {
+            label: datasetLabel,
+            data: series.map((row) => row.total),
+            borderColor: colors.border,
+            backgroundColor: resolvedMode === 'bar' ? colors.soft : 'transparent',
+            fill: false,
+            borderWidth: 2,
+            tension: 0.35,
+            pointRadius: resolvedMode === 'bar' ? 0 : 2,
+            pointHoverRadius: 4,
+            pointBackgroundColor: colors.border,
+            pointBorderColor: theme === 'dark' ? '#1e1d1d' : '#fff',
+            pointBorderWidth: 2,
+            barPercentage: 0.72,
+            categoryPercentage: 0.72,
+          },
+        ],
+      },
       options: {
         maintainAspectRatio: false,
         responsive: true,
         animation: {
-          duration: 750,
+          duration: 450,
           easing: 'easeOutQuart',
         },
         interaction: {
           mode: 'index',
           intersect: false,
         },
-        layout: {
-          padding: {
-            left: 0,
-            right: 0,
-            top: 4,
-            bottom: 0,
-          },
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            display: false,
-          },
-          x: {
-            display: false,
-            ticks: {
-              stepSize: 10,
-              maxTicksLimit: 7,
-            },
-          },
-        },
         plugins: {
           legend: {
-            display: false,
+            display: showLegend,
+            position: 'top',
+            labels: {
+              color: theme === 'dark' ? '#e5e7eb' : '#374151',
+              usePointStyle: true,
+              pointStyle: resolvedMode === 'bar' ? 'rect' : 'line',
+              boxWidth: 10,
+            },
           },
           tooltip: {
             enabled: true,
-            backgroundColor: mode === 'dark' ? '#1e1d1d' : '#fff',
-            titleColor: mode === 'dark' ? '#fff' : '#000',
-            bodyColor: mode === 'dark' ? '#9c9c9c' : '#777',
-            borderColor: mode === 'dark' ? '#2b2b2b' : '#e7e9eb',
+            backgroundColor: theme === 'dark' ? '#111827' : '#ffffff',
+            titleColor: theme === 'dark' ? '#f9fafb' : '#111827',
+            bodyColor: theme === 'dark' ? '#d1d5db' : '#374151',
+            borderColor: theme === 'dark' ? '#374151' : '#e5e7eb',
             borderWidth: 1,
             padding: 10,
-            cornerRadius: 8,
+            cornerRadius: 10,
             displayColors: false,
-            titleFont: {
-              size: 12,
-              weight: 'normal',
+            callbacks: {
+              title(items: TooltipItem<'line' | 'bar'>[]) {
+                const raw = items[0]?.label ?? '';
+                return raw;
+              },
+              label(context: TooltipItem<'line' | 'bar'>) {
+                const value = Number(context.raw);
+                return `${datasetLabel}: ${compactNumber.format(value)}`;
+              },
             },
-            bodyFont: {
-              size: 14,
-              weight: 'bold',
+          },
+        },
+        scales: {
+          x: {
+            grid: {
+              display: false,
+            },
+            ticks: {
+              color: theme === 'dark' ? '#9ca3af' : '#6b7280',
+              maxTicksLimit: maxTicks,
+              autoSkip: true,
+              maxRotation: 0,
+              minRotation: 0,
+              font: {
+                size: 10,
+              },
+            },
+          },
+          y: {
+            beginAtZero: true,
+            grid: {
+              color: theme === 'dark' ? 'rgba(148, 163, 184, 0.12)' : 'rgba(107, 114, 128, 0.12)',
+            },
+            ticks: {
+              color: theme === 'dark' ? '#9ca3af' : '#6b7280',
+              maxTicksLimit: 4,
+              font: {
+                size: 10,
+              },
+              callback(value) {
+                const numericValue = typeof value === 'number' ? value : Number(value);
+                return compactNumber.format(numericValue);
+              },
             },
           },
         },
       },
-      data: {
-        labels: list.map((row) => row.date),
-        datasets: [
-          {
-            borderColor: colors.border,
-            borderWidth: 2,
-            label: 'Total',
-            backgroundColor: gradient,
-            fill: true,
-            data: list.map((row) => row.total),
-            tension: 0.4,
-            pointRadius: 0,
-            pointHoverRadius: 6,
-            pointHoverBackgroundColor: colors.border,
-            pointHoverBorderColor: mode === 'dark' ? '#1e1d1d' : '#fff',
-            pointHoverBorderWidth: 2,
-          },
-        ],
-      },
-    });
-    return () => {
-      chart?.current?.destroy();
     };
-  }, []);
 
-  return <canvas className="w-full h-full" ref={ref} />;
+    chartRef.current = new ChartJS(context, configuration);
+
+    return () => {
+      chartRef.current?.destroy();
+      chartRef.current = null;
+    };
+  }, [colors.border, colors.soft, datasetLabel, maxTicks, resolvedMode, series, showLegend, theme]);
+
+  return (
+    <div className="relative w-full" style={{ height: `${height}px` }}>
+      <canvas ref={canvasRef} className="h-full w-full" />
+    </div>
+  );
 };

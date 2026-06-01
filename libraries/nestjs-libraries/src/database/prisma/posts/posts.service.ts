@@ -118,12 +118,22 @@ export class PostsService {
       };
     }
 
-    const posts = await provider.syncPosts(currentIntegration, days);
-    return this._postRepository.syncPublishedPosts(
+    const result = await this._postRepository.syncPublishedPosts(
       orgId,
       currentIntegration.id,
-      posts
+      await provider.syncPosts(currentIntegration, days)
     );
+
+    await ioRedis.del(
+      ...[1, 7, 30, 60, 90, 100].map(
+        (range) => `integration:${orgId}:${currentIntegration.id}:${range}`
+      )
+    );
+
+    return {
+      ...result,
+      analyticsInvalidated: true,
+    };
   }
 
   async getMissingContent(

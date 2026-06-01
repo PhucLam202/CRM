@@ -52,6 +52,7 @@ export const StatisticsModal: FC<{
 
   const dateOptions = useMemo(() => {
     return [
+      { key: 1, value: t('1_day', '1 Day') },
       { key: 7, value: t('7_days', '7 Days') },
       { key: 30, value: t('30_days', '30 Days') },
       { key: 90, value: t('90_days', '90 Days') },

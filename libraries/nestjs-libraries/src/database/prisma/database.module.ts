@@ -42,6 +42,14 @@ import { AnnouncementsRepository } from '@gitroom/nestjs-libraries/database/pris
 import { AnnouncementsService } from '@gitroom/nestjs-libraries/database/prisma/announcements/announcements.service';
 import { ErrorsRepository } from '@gitroom/nestjs-libraries/database/prisma/errors/errors.repository';
 import { ErrorsService } from '@gitroom/nestjs-libraries/database/prisma/errors/errors.service';
+import { GrowthInsightRepository } from '@gitroom/nestjs-libraries/database/prisma/growth-insights/growth-insight.repository';
+import { GrowthInsightService } from '@gitroom/nestjs-libraries/database/prisma/growth-insights/growth-insight.service';
+import { PostAnalyticsSnapshotService } from '@gitroom/nestjs-libraries/database/prisma/growth-insights/post-analytics-snapshot.service';
+import { ProviderMetricsNormalizerService } from '@gitroom/nestjs-libraries/database/prisma/growth-insights/provider-metrics-normalizer.service';
+import { GrowthRecommendationService } from '@gitroom/nestjs-libraries/database/prisma/growth-insights/growth-recommendation.service';
+import { ContentTemplateBuilderService } from '@gitroom/nestjs-libraries/database/prisma/growth-insights/content-template-builder.service';
+import { LlmConfigService } from '@gitroom/nestjs-libraries/llm/llm-config.service';
+import { LlmRouterService } from '@gitroom/nestjs-libraries/llm/llm-router.service';
 
 @Global()
 @Module({
@@ -93,6 +101,14 @@ import { ErrorsService } from '@gitroom/nestjs-libraries/database/prisma/errors/
     AnnouncementsService,
     ErrorsRepository,
     ErrorsService,
+    GrowthInsightRepository,
+    GrowthInsightService,
+    PostAnalyticsSnapshotService,
+    ProviderMetricsNormalizerService,
+    GrowthRecommendationService,
+    ContentTemplateBuilderService,
+    LlmConfigService,
+    LlmRouterService,
   ],
   get exports() {
     return this.providers;

@@ -10,9 +10,9 @@ import {
 } from '@nestjs/common';
 import {
   CopilotRuntime,
+  ExperimentalEmptyAdapter,
   OpenAIAdapter,
   copilotRuntimeNodeHttpEndpoint,
-  copilotRuntimeNextJSAppRouterEndpoint,
 } from '@copilotkit/runtime';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
 import { Organization } from '@prisma/client';
@@ -43,7 +43,9 @@ export class CopilotController {
       process.env.OPENAI_API_KEY === ''
     ) {
       Logger.warn('OpenAI API key not set, chat functionality will not work');
-      return;
+      return res.status(503).json({
+        message: 'OpenAI API key not set, chat functionality will not work',
+      });
     }
 
     const copilotRuntimeHandler = copilotRuntimeNodeHttpEndpoint({
@@ -69,7 +71,9 @@ export class CopilotController {
       process.env.OPENAI_API_KEY === ''
     ) {
       Logger.warn('OpenAI API key not set, chat functionality will not work');
-      return;
+      return res.status(503).json({
+        message: 'OpenAI API key not set, chat functionality will not work',
+      });
     }
     const mastra = await this._mastraService.mastra();
     const requestContext = new RequestContext<ChannelsContext>();
@@ -91,16 +95,14 @@ export class CopilotController {
       agents,
     });
 
-    const copilotRuntimeHandler = copilotRuntimeNextJSAppRouterEndpoint({
+    const copilotRuntimeHandler = copilotRuntimeNodeHttpEndpoint({
       endpoint: '/copilot/agent',
       runtime,
       // properties: req.body.variables.properties,
-      serviceAdapter: new OpenAIAdapter({
-        model: 'gpt-4.1',
-      }),
+      serviceAdapter: new ExperimentalEmptyAdapter(),
     });
 
-    return copilotRuntimeHandler.handleRequest(req, res);
+    return copilotRuntimeHandler(req, res);
   }
 
   @Get('/credits')

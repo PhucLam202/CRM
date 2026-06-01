@@ -90,6 +90,25 @@ export const PlatformAnalytics = () => {
       ].indexOf(currentIntegration.identifier) !== -1
     ) {
       arr.push({
+        key: 1,
+        value: t('1_day', '1 Day'),
+      });
+    }
+    if (
+      [
+        'facebook',
+        'instagram',
+        'instagram-standalone',
+        'linkedin-page',
+        'pinterest',
+        'youtube',
+        'threads',
+        'gmb',
+        'x',
+        'tiktok',
+      ].indexOf(currentIntegration.identifier) !== -1
+    ) {
+      arr.push({
         key: 7,
         value: t('7_days', '7 Days'),
       });
@@ -292,7 +311,9 @@ export const PlatformAnalytics = () => {
             </div>
             <div className="flex-1">
               {!!keys && !!currentIntegration && !refresh && (
-                <RenderAnalytics integration={currentIntegration} date={keys} />
+                <>
+                  <RenderAnalytics integration={currentIntegration} date={keys} />
+                </>
               )}
             </div>
           </div>

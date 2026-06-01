@@ -43,6 +43,9 @@ model Organization {
   webhooks            Webhooks[]
   oauthApp            OAuthApp[]
   oauthAuthorizations OAuthAuthorization[]
+  postAnalyticsSnapshots PostAnalyticsSnapshot[]
+  accountGrowthInsights  AccountGrowthInsight[]
+  contentTemplatePresets ContentTemplatePreset[]
 
   @@index([apiKey])
   @@index([streakSince])
@@ -341,6 +344,9 @@ model Integration {
   orderItems            OrderItems[]
   plugs                 Plugs[]
   posts                 Post[]
+  postAnalyticsSnapshots PostAnalyticsSnapshot[]
+  accountGrowthInsights  AccountGrowthInsight[]
+  contentTemplatePresets ContentTemplatePreset[]
 
   @@unique([organizationId, internalId])
   @@index([rootInternalId])
@@ -427,6 +433,7 @@ model Post {
   submittedForOrder          Orders?                   @relation(fields: [submittedForOrderId], references: [id])
   submittedForOrganization   Organization?             @relation("submittedForOrg", fields: [submittedForOrganizationId], references: [id])
   tags                       TagsPosts[]
+  analyticsSnapshots         PostAnalyticsSnapshot[]
 
   @@index([group])
   @@index([deletedAt])
@@ -443,6 +450,78 @@ model Post {
   @@index([updatedAt])
   @@index([releaseURL])
   @@index([integrationId])
+}
+
+model PostAnalyticsSnapshot {
+  id             String       @id @default(cuid())
+  organizationId String
+  integrationId  String
+  provider       String
+  postId         String
+  providerPostId String?
+  snapshotDate   DateTime
+  metrics        Json
+  normalized     Json?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  integration    Integration  @relation(fields: [integrationId], references: [id])
+  post           Post         @relation(fields: [postId], references: [id])
+
+  @@unique([organizationId, integrationId, postId, snapshotDate])
+  @@index([organizationId, integrationId, snapshotDate])
+  @@index([postId, snapshotDate])
+  @@index([provider])
+}
+
+model AccountGrowthInsight {
+  id              String       @id @default(cuid())
+  organizationId  String
+  integrationId   String
+  provider        String
+  periodFrom      DateTime
+  periodTo        DateTime
+  periodDays      Int
+  accountSummary  String?
+  diagnosis       Json
+  contentPatterns Json
+  recommendations Json
+  templates       Json
+  scoreBreakdown  Json
+  sourceStats     Json
+  status          String       @default("completed")
+  error           String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  integration     Integration  @relation(fields: [integrationId], references: [id])
+
+  @@index([organizationId, integrationId, periodFrom, periodTo])
+  @@index([organizationId, integrationId, createdAt])
+  @@index([status])
+}
+
+model ContentTemplatePreset {
+  id              String       @id @default(cuid())
+  organizationId  String
+  integrationId   String?
+  provider        String?
+  type            String
+  title           String
+  template        String
+  placeholders    Json
+  useCase         String?
+  reason          String?
+  sourceInsightId String?
+  isActive        Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  integration     Integration? @relation(fields: [integrationId], references: [id])
+
+  @@index([organizationId, integrationId])
+  @@index([organizationId, isActive])
+  @@index([type])
 }
 
 model Notifications {
