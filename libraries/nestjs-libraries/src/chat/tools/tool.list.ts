@@ -7,6 +7,8 @@ import { GenerateVideoTool } from '@gitroom/nestjs-libraries/chat/tools/generate
 import { GenerateImageTool } from '@gitroom/nestjs-libraries/chat/tools/generate.image.tool';
 import { IntegrationListTool } from '@gitroom/nestjs-libraries/chat/tools/integration.list.tool';
 import { UploadFromUrlTool } from '@gitroom/nestjs-libraries/chat/tools/upload.from.url.tool';
+import { GenerateContentIdeaTool } from '@gitroom/nestjs-libraries/chat/tools/generate.content.idea.tool';
+import { SplitThreadTool } from '@gitroom/nestjs-libraries/chat/tools/split.thread.tool';
 
 export const toolList = [
   IntegrationListTool,
@@ -18,4 +20,6 @@ export const toolList = [
   GenerateVideoTool,
   GenerateImageTool,
   UploadFromUrlTool,
+  GenerateContentIdeaTool,
+  SplitThreadTool,
 ];

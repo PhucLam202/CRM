@@ -46,6 +46,9 @@ model Organization {
   postAnalyticsSnapshots PostAnalyticsSnapshot[]
   accountGrowthInsights  AccountGrowthInsight[]
   contentTemplatePresets ContentTemplatePreset[]
+  evergreenQueues        EvergreenQueue[]
+  contentAutomations     ContentAutomation[]
+  campaigns              Campaign[]
 
   @@index([apiKey])
   @@index([streakSince])
@@ -705,6 +708,92 @@ model AutoPost {
   organization    Organization @relation(fields: [organizationId], references: [id])
 
   @@index([deletedAt])
+}
+
+model EvergreenQueue {
+  id               String       @id @default(cuid())
+  organizationId   String
+  integrationId    String
+  sourcePostId     String
+  active           Boolean      @default(true)
+  minScore         Float        @default(0)
+  frequencyType    String       @default("weekly")
+  frequencyPerWeek Int          @default(2)
+  nextRepostAt     DateTime
+  lastRepostPostId String?
+  rotationCount    Int          @default(0)
+  lastRotatedAt    DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  deletedAt        DateTime?
+  organization     Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId])
+  @@index([integrationId])
+  @@index([active, nextRepostAt])
+  @@index([deletedAt])
+}
+
+model ContentAutomation {
+  id                String       @id @default(cuid())
+  organizationId    String
+  integrationId     String
+  active            Boolean      @default(true)
+  niche             String
+  language          String       @default("en")
+  growthGoal        String       @default("5_days")
+  format            String       @default("single_post")
+  frequencyPerWeek  Int          @default(5)
+  preferredHour     Int?
+  lastGeneratedAt   DateTime?
+  lastPostId        String?
+  nextRunAt         DateTime
+  totalRuns         Int          @default(0)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  deletedAt         DateTime?
+  organization      Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId])
+  @@index([integrationId])
+  @@index([active, nextRunAt])
+  @@index([deletedAt])
+}
+
+model Campaign {
+  id             String          @id @default(cuid())
+  organizationId String
+  name           String
+  budget         Float           @default(0)
+  revenue        Float           @default(0)
+  startDate      DateTime
+  endDate        DateTime
+  utmSource      String?
+  utmMedium      String?
+  utmCampaign    String?
+  notes          String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  deletedAt      DateTime?
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  campaignPosts  CampaignPost[]
+
+  @@index([organizationId])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([deletedAt])
+}
+
+model CampaignPost {
+  id         String   @id @default(cuid())
+  campaignId String
+  postId     String
+  createdAt  DateTime @default(now())
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, postId])
+  @@index([campaignId])
+  @@index([postId])
 }
 
 model Sets {

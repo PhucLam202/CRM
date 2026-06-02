@@ -50,6 +50,16 @@ import { GrowthRecommendationService } from '@gitroom/nestjs-libraries/database/
 import { ContentTemplateBuilderService } from '@gitroom/nestjs-libraries/database/prisma/growth-insights/content-template-builder.service';
 import { LlmConfigService } from '@gitroom/nestjs-libraries/llm/llm-config.service';
 import { LlmRouterService } from '@gitroom/nestjs-libraries/llm/llm-router.service';
+import { ContentAiService } from '@gitroom/nestjs-libraries/content-ai/content.ai.service';
+import { BestTimeAnalyzerService } from '@gitroom/nestjs-libraries/analytics/best-time-analyzer.service';
+import { EngagementTimeSeriesService } from '@gitroom/nestjs-libraries/analytics/engagement-time-series.service';
+import { ContentTypePerformanceService } from '@gitroom/nestjs-libraries/analytics/content-type-performance.service';
+import { EvergreenRepository } from '@gitroom/nestjs-libraries/database/prisma/evergreen/evergreen.repository';
+import { EvergreenService } from '@gitroom/nestjs-libraries/database/prisma/evergreen/evergreen.service';
+import { ContentAutomationRepository } from '@gitroom/nestjs-libraries/database/prisma/content-automation/content-automation.repository';
+import { ContentAutomationService } from '@gitroom/nestjs-libraries/database/prisma/content-automation/content-automation.service';
+import { CampaignRepository } from '@gitroom/nestjs-libraries/database/prisma/campaigns/campaign.repository';
+import { CampaignService } from '@gitroom/nestjs-libraries/database/prisma/campaigns/campaign.service';
 
 @Global()
 @Module({
@@ -109,6 +119,16 @@ import { LlmRouterService } from '@gitroom/nestjs-libraries/llm/llm-router.servi
     ContentTemplateBuilderService,
     LlmConfigService,
     LlmRouterService,
+    ContentAiService,
+    BestTimeAnalyzerService,
+    EngagementTimeSeriesService,
+    ContentTypePerformanceService,
+    EvergreenRepository,
+    EvergreenService,
+    ContentAutomationRepository,
+    ContentAutomationService,
+    CampaignRepository,
+    CampaignService,
   ],
   get exports() {
     return this.providers;

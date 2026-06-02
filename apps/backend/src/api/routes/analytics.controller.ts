@@ -9,6 +9,9 @@ import {
   GenerateGrowthInsightInput,
   SaveContentTemplateInput,
 } from '@gitroom/nestjs-libraries/database/prisma/growth-insights/growth-insights.types';
+import { BestTimeAnalyzerService } from '@gitroom/nestjs-libraries/analytics/best-time-analyzer.service';
+import { EngagementTimeSeriesService } from '@gitroom/nestjs-libraries/analytics/engagement-time-series.service';
+import { ContentTypePerformanceService } from '@gitroom/nestjs-libraries/analytics/content-type-performance.service';
 
 @ApiTags('Analytics')
 @Controller('/analytics')
@@ -16,7 +19,10 @@ export class AnalyticsController {
   constructor(
     private _integrationService: IntegrationService,
     private _postsService: PostsService,
-    private _growthInsightService: GrowthInsightService
+    private _growthInsightService: GrowthInsightService,
+    private _bestTimeAnalyzer: BestTimeAnalyzerService,
+    private _engagementTimeSeries: EngagementTimeSeriesService,
+    private _contentTypePerformance: ContentTypePerformanceService
   ) {}
 
   @Post('/:integration/growth-insights/generate')
@@ -79,5 +85,54 @@ export class AnalyticsController {
     @Query('date') date: string
   ) {
     return this._postsService.checkPostAnalytics(org.id, postId, +date);
+  }
+
+  @Get('/:integration/best-times')
+  async getBestTimes(
+    @GetOrgFromRequest() org: Organization,
+    @Param('integration') integration: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string
+  ) {
+    const toDate = to ? new Date(to) : new Date();
+    const fromDate = from
+      ? new Date(from)
+      : new Date(toDate.getTime() - 90 * 24 * 60 * 60 * 1000);
+    return this._bestTimeAnalyzer.analyze(org.id, integration, fromDate, toDate);
+  }
+
+  @Get('/:integration/engagement-timeseries')
+  async getEngagementTimeSeries(
+    @GetOrgFromRequest() org: Organization,
+    @Param('integration') integration: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('bucket') bucket?: 'day' | 'week'
+  ) {
+    const toDate = to ? new Date(to) : new Date();
+    const fromDate = from
+      ? new Date(from)
+      : new Date(toDate.getTime() - 60 * 24 * 60 * 60 * 1000);
+    return this._engagementTimeSeries.analyze(
+      org.id,
+      integration,
+      fromDate,
+      toDate,
+      bucket || 'day'
+    );
+  }
+
+  @Get('/:integration/content-types/performance')
+  async getContentTypePerformance(
+    @GetOrgFromRequest() org: Organization,
+    @Param('integration') integration: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string
+  ) {
+    const toDate = to ? new Date(to) : new Date();
+    const fromDate = from
+      ? new Date(from)
+      : new Date(toDate.getTime() - 90 * 24 * 60 * 60 * 1000);
+    return this._contentTypePerformance.analyze(org.id, integration, fromDate, toDate);
   }
 }

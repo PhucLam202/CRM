@@ -21,6 +21,7 @@ export const Select: FC<
     extraForm?: RegisterOptions<any>;
     disableForm?: boolean;
     label: string;
+    labelTooltip?: string;
     name: string;
     hideErrors?: boolean;
     translationKey?: string;
@@ -29,6 +30,7 @@ export const Select: FC<
 > = forwardRef((props, ref) => {
   const {
     label,
+    labelTooltip,
     className,
     hideErrors,
     disableForm,
@@ -46,12 +48,21 @@ export const Select: FC<
   }, [form?.formState?.errors?.[props?.name!]?.message, error]);
   return (
     <div className={clsx('flex flex-col', label ? 'gap-[6px]' : '')}>
-      <div className={`text-[14px]`}>
+      <div className={`text-[14px] flex items-center gap-[6px]`}>
         <TranslatedLabel
           label={label}
           translationKey={translationKey}
           translationParams={translationParams}
         />
+        {labelTooltip && (
+          <span
+            data-tooltip-id="tooltip"
+            data-tooltip-content={labelTooltip}
+            className="cursor-help text-textColor/60"
+          >
+            ?
+          </span>
+        )}
       </div>
       <select
         ref={ref}

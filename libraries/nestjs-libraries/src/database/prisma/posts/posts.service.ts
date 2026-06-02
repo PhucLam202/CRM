@@ -43,6 +43,39 @@ import {
   postId as postIdSearchParam,
 } from '@gitroom/nestjs-libraries/temporal/temporal.search.attribute';
 import { AnalyticsData } from '@gitroom/nestjs-libraries/integrations/social/social.integrations.interface';
+
+type FreeDateTimeOptions = {
+  minSpacingMinutes?: number;
+  optimalOnly?: boolean;
+};
+
+const OPTIMAL_POSTING_TIMES = [
+  7 * 60,
+  7 * 60 + 30,
+  8 * 60,
+  8 * 60 + 30,
+  9 * 60,
+  9 * 60 + 30,
+  10 * 60,
+  10 * 60 + 30,
+  11 * 60,
+  11 * 60 + 30,
+  12 * 60,
+  18 * 60,
+  18 * 60 + 30,
+  19 * 60,
+  19 * 60 + 30,
+  20 * 60,
+  20 * 60 + 30,
+  21 * 60,
+  21 * 60 + 30,
+  22 * 60,
+];
+
+const isOptimalPostingTime = (time: number) => {
+  const hour = Math.floor(time / 60);
+  return (hour >= 7 && hour <= 12) || (hour >= 18 && hour <= 22);
+};
 import { timer } from '@gitroom/helpers/utils/timer';
 import { ioRedis } from '@gitroom/nestjs-libraries/redis/redis.service';
 import { RefreshToken } from '@gitroom/nestjs-libraries/integrations/social.abstract';
@@ -1150,15 +1183,30 @@ export class PostsService {
     return this._postRepository.findPopularPosts(category, topic);
   }
 
-  async findFreeDateTime(orgId: string, integrationId?: string) {
-    const findTimes = await this._integrationService.findFreeDateTime(
+  async findFreeDateTime(
+    orgId: string,
+    integrationId?: string,
+    options: FreeDateTimeOptions = {}
+  ) {
+    const postingTimes = await this._integrationService.findFreeDateTime(
       orgId,
       integrationId
     );
+
+    const findTimes = (() => {
+      if (!options.optimalOnly) return postingTimes;
+
+      const optimalPostingTimes = postingTimes.filter(isOptimalPostingTime);
+      return Array.from(new Set([...optimalPostingTimes, ...OPTIMAL_POSTING_TIMES])).sort(
+        (first, second) => first - second
+      );
+    })();
+
     return this.findFreeDateTimeRecursive(
       orgId,
       findTimes,
-      dayjs.utc().startOf('day')
+      dayjs.utc().startOf('day'),
+      options
     );
   }
 
@@ -1174,16 +1222,18 @@ export class PostsService {
   private async findFreeDateTimeRecursive(
     orgId: string,
     times: number[],
-    date: dayjs.Dayjs
+    date: dayjs.Dayjs,
+    options: FreeDateTimeOptions = {}
   ): Promise<string> {
     const list = await this._postRepository.getPostsCountsByDates(
       orgId,
       times,
-      date
+      date,
+      options.minSpacingMinutes
     );
 
     if (!list.length) {
-      return this.findFreeDateTimeRecursive(orgId, times, date.add(1, 'day'));
+      return this.findFreeDateTimeRecursive(orgId, times, date.add(1, 'day'), options);
     }
 
     const num = list.reduce<null | number>((prev, curr) => {
