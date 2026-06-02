@@ -26,6 +26,7 @@ import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
 import useCookie from 'react-use-cookie';
 import { Onboarding } from '@gitroom/frontend/components/onboarding/onboarding';
+import { Automations } from '@gitroom/frontend/components/launches/automations/automations.component';
 
 export const SVGLine = () => {
   return (
@@ -361,6 +362,7 @@ export const LaunchesComponent = () => {
   const [reload, setReload] = useState(false);
   const [collapseMenu, setCollapseMenu] = useCookie('collapseMenu', '0');
   const [mode] = useCookie('mode', 'dark');
+  const [activeTab, setActiveTab] = useCookie('launches-tab', 'calendar');
   const { isLoading, data: integrations, mutate } = useIntegrationList();
 
   const totalNonDisabledChannels = useMemo(() => {
@@ -593,10 +595,38 @@ export const LaunchesComponent = () => {
           </div>
         </div>
         <div className="bg-newBgColorInner flex-1 flex-col flex p-[20px] gap-[12px]">
-          <Filters />
-          <div className="flex-1 flex">
-            <Calendar />
+          <div className="flex flex-row p-[4px] border border-newTableBorder rounded-[8px] text-[14px] font-[500] self-start">
+            <div
+              onClick={() => setActiveTab('calendar')}
+              className={clsx(
+                'pt-[6px] pb-[5px] cursor-pointer min-w-[110px] px-[14px] text-center rounded-[6px]',
+                activeTab === 'calendar' && 'text-textItemFocused bg-boxFocused'
+              )}
+            >
+              {t('launches_tab_calendar', 'Calendar')}
+            </div>
+            <div
+              onClick={() => setActiveTab('automations')}
+              className={clsx(
+                'pt-[6px] pb-[5px] cursor-pointer min-w-[110px] px-[14px] text-center rounded-[6px]',
+                activeTab === 'automations' && 'text-textItemFocused bg-boxFocused'
+              )}
+            >
+              {t('launches_tab_automations', 'Automations')}
+            </div>
           </div>
+          {activeTab === 'calendar' ? (
+            <>
+              <Filters />
+              <div className="flex-1 flex">
+                <Calendar />
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex">
+              <Automations integrations={sortedIntegrations || []} />
+            </div>
+          )}
         </div>
       </CalendarWeekProvider>
     </DNDProvider>

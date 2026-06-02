@@ -19,6 +19,7 @@ export const Input: FC<
     disableForm?: boolean;
     customUpdate?: () => void;
     label: string;
+    labelTooltip?: string;
     name: string;
     icon?: ReactNode;
     translationKey?: string;
@@ -27,6 +28,7 @@ export const Input: FC<
 > = (props) => {
   const {
     label,
+    labelTooltip,
     icon,
     removeError,
     customUpdate,
@@ -52,12 +54,21 @@ export const Input: FC<
   return (
     <div className="flex flex-col gap-[6px]">
       {!!label && (
-        <div className={`text-[14px]`}>
+        <div className={`text-[14px] flex items-center gap-[6px]`}>
           <TranslatedLabel
             label={label}
             translationKey={translationKey}
             translationParams={translationParams}
           />
+          {labelTooltip && (
+            <span
+              data-tooltip-id="tooltip"
+              data-tooltip-content={labelTooltip}
+              className="cursor-help text-textColor/60"
+            >
+              ?
+            </span>
+          )}
         </div>
       )}
       <div

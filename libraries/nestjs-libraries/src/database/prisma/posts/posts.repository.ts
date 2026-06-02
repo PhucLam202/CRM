@@ -845,17 +845,26 @@ export class PostsRepository {
   async getPostsCountsByDates(
     orgId: string,
     times: number[],
-    date: dayjs.Dayjs
+    date: dayjs.Dayjs,
+    minSpacingMinutes = 0
   ) {
     const dates = await this._post.model.post.findMany({
       where: {
         deletedAt: null,
         organizationId: orgId,
-        publishDate: {
-          in: times.map((time) => {
-            return date.clone().add(time, 'minutes').toDate();
-          }),
-        },
+        publishDate: minSpacingMinutes
+          ? {
+              gte: date.clone().startOf('day').toDate(),
+              lt: date.clone().add(1, 'day').startOf('day').toDate(),
+            }
+          : {
+              in: times.map((time) => {
+                return date.clone().add(time, 'minutes').toDate();
+              }),
+            },
+      },
+      select: {
+        publishDate: true,
       },
     });
 
@@ -863,11 +872,12 @@ export class PostsRepository {
       (time) =>
         date.clone().add(time, 'minutes').isAfter(dayjs.utc()) &&
         !dates.find((dateFind) => {
-          return (
+          const diff = Math.abs(
             dayjs
               .utc(dateFind.publishDate)
-              .diff(date.clone().startOf('day'), 'minutes') == time
+              .diff(date.clone().add(time, 'minutes'), 'minutes')
           );
+          return minSpacingMinutes ? diff < minSpacingMinutes : diff === 0;
         })
     );
   }

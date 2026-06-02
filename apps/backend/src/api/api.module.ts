@@ -45,6 +45,10 @@ import { WalletProvider } from '@gitroom/backend/services/auth/providers/wallet.
 import { OauthProvider } from '@gitroom/backend/services/auth/providers/oauth.provider';
 import { LlmConfigService } from '@gitroom/nestjs-libraries/llm/llm-config.service';
 import { LlmRouterService } from '@gitroom/nestjs-libraries/llm/llm-router.service';
+import { ContentAiController } from '@gitroom/backend/api/routes/content-ai.controller';
+import { EvergreenController } from '@gitroom/backend/api/routes/evergreen.controller';
+import { ContentAutomationController } from '@gitroom/backend/api/routes/content-automation.controller';
+import { CampaignsController } from '@gitroom/backend/api/routes/campaigns.controller';
 
 const authenticatedController = [
   UsersController,
@@ -66,6 +70,10 @@ const authenticatedController = [
   OAuthAuthorizedController,
   AnnouncementsController,
   AdminController,
+  ContentAiController,
+  EvergreenController,
+  ContentAutomationController,
+  CampaignsController,
 ];
 @Module({
   imports: [UploadModule],

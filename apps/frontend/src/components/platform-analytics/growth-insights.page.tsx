@@ -97,6 +97,36 @@ interface GrowthInsightResponse {
   dailySuggestions?: DailySuggestion[];
 }
 
+interface BestTimeResponse {
+  status: 'ready' | 'insufficient_data';
+  minimumPosts: number;
+  postsAnalyzed: number;
+  slots: Array<{
+    dayOfWeek: number;
+    hour: number;
+    score: number;
+    sampleSize: number;
+    avgEngagementRate: number;
+  }>;
+}
+
+interface EngagementTimeSeriesResponse {
+  points: Array<{
+    date: string;
+    posts: number;
+    avgEngagementRate: number;
+  }>;
+}
+
+interface ContentTypePerformanceResponse {
+  items: Array<{
+    format: string;
+    posts: number;
+    avgEngagementRate: number;
+    bestPostId: string | null;
+  }>;
+}
+
 const allowedIntegrations = [
   'facebook',
   'instagram',
@@ -138,6 +168,9 @@ const formatMetricValue = (value: number | string) => {
 
   return String(value).replace(/_/g, ' ');
 };
+
+const formatPercent = (value: number) => `${(value * 100).toFixed(2)}%`;
+const weekdayLabel = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export const GrowthInsightsPage = () => {
   const fetch = useFetch();
@@ -249,6 +282,45 @@ export const GrowthInsightsPage = () => {
     return (await response.json()) as GrowthInsightResponse[];
   }, [currentIntegration, fetch]);
 
+  const loadBestTimes = useCallback(async () => {
+    if (!currentIntegration) {
+      return null;
+    }
+
+    const response = await fetch(`/analytics/${currentIntegration.id}/best-times?from=${period.from}&to=${period.to}`);
+    if (!response.ok) {
+      throw new Error('Failed to load best times');
+    }
+
+    return (await response.json()) as BestTimeResponse;
+  }, [currentIntegration, fetch, period.from, period.to]);
+
+  const loadEngagementTimeSeries = useCallback(async () => {
+    if (!currentIntegration) {
+      return null;
+    }
+
+    const response = await fetch(`/analytics/${currentIntegration.id}/engagement-timeseries?from=${period.from}&to=${period.to}&bucket=day`);
+    if (!response.ok) {
+      throw new Error('Failed to load engagement series');
+    }
+
+    return (await response.json()) as EngagementTimeSeriesResponse;
+  }, [currentIntegration, fetch, period.from, period.to]);
+
+  const loadContentTypes = useCallback(async () => {
+    if (!currentIntegration) {
+      return null;
+    }
+
+    const response = await fetch(`/analytics/${currentIntegration.id}/content-types/performance?from=${period.from}&to=${period.to}`);
+    if (!response.ok) {
+      throw new Error('Failed to load content types');
+    }
+
+    return (await response.json()) as ContentTypePerformanceResponse;
+  }, [currentIntegration, fetch, period.from, period.to]);
+
   const {
     data: latestInsight,
     isLoading: isLoadingLatestInsight,
@@ -270,6 +342,24 @@ export const GrowthInsightsPage = () => {
     revalidateOnReconnect: false,
     revalidateIfStale: false,
   });
+
+  const { data: bestTimes } = useSWR(
+    currentIntegration ? `insights-${currentIntegration.id}-best-times-${period.from}-${period.to}` : null,
+    loadBestTimes,
+    { revalidateOnFocus: false }
+  );
+
+  const { data: engagementSeries } = useSWR(
+    currentIntegration ? `insights-${currentIntegration.id}-engagement-series-${period.from}-${period.to}` : null,
+    loadEngagementTimeSeries,
+    { revalidateOnFocus: false }
+  );
+
+  const { data: contentTypes } = useSWR(
+    currentIntegration ? `insights-${currentIntegration.id}-content-types-${period.from}-${period.to}` : null,
+    loadContentTypes,
+    { revalidateOnFocus: false }
+  );
 
   const generateInsights = useCallback(async () => {
     if (!currentIntegration) {
@@ -625,6 +715,76 @@ export const GrowthInsightsPage = () => {
               </div>
             )}
           </div>
+        </div>
+      </section>
+
+      <section className="grid gap-[14px] xl:grid-cols-3">
+        <div className="rounded-[18px] border border-newTableBorder bg-newTableHeader p-[18px] shadow-sm">
+          <div className="text-[15px] font-medium text-newTableText">Best time to post</div>
+          <div className="mt-[6px] text-[12px] text-newTableText/50">Analytics-based slots for the selected period.</div>
+          {bestTimes?.status === 'insufficient_data' ? (
+            <div className="mt-[14px] rounded-[12px] bg-newBgColorInner p-[12px] text-[13px] text-newTableText/65">
+              Need at least {bestTimes.minimumPosts} posts. Current sample: {bestTimes.postsAnalyzed}.
+            </div>
+          ) : bestTimes?.slots?.length ? (
+            <div className="mt-[14px] flex flex-col gap-[8px]">
+              {bestTimes.slots.slice(0, 5).map((slot) => (
+                <div key={`${slot.dayOfWeek}-${slot.hour}`} className="flex items-center justify-between rounded-[12px] bg-newBgColorInner px-[12px] py-[10px]">
+                  <div className="text-[13px] font-medium text-newTableText">
+                    {weekdayLabel[slot.dayOfWeek]} {String(slot.hour).padStart(2, '0')}:00 UTC
+                  </div>
+                  <div className="text-[12px] text-newTableText/60">
+                    {formatPercent(slot.avgEngagementRate)} · {slot.sampleSize} posts
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-[14px] text-[13px] text-newTableText/55">No slot data yet.</div>
+          )}
+        </div>
+
+        <div className="rounded-[18px] border border-newTableBorder bg-newTableHeader p-[18px] shadow-sm">
+          <div className="text-[15px] font-medium text-newTableText">Engagement trend</div>
+          <div className="mt-[6px] text-[12px] text-newTableText/50">Daily average engagement rate.</div>
+          {engagementSeries?.points?.length ? (
+            <div className="mt-[14px] flex h-[150px] items-end gap-[5px] rounded-[12px] bg-newBgColorInner p-[12px]">
+              {engagementSeries.points.slice(-24).map((point) => {
+                const max = Math.max(...engagementSeries.points.map((item) => item.avgEngagementRate), 0.001);
+                return (
+                  <div key={point.date} className="flex flex-1 flex-col items-center gap-[6px]">
+                    <div
+                      className="w-full rounded-t-[6px] bg-[#612bd3]"
+                      style={{ height: `${Math.max(4, (point.avgEngagementRate / max) * 110)}px` }}
+                      title={`${point.date}: ${formatPercent(point.avgEngagementRate)}`}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="mt-[14px] text-[13px] text-newTableText/55">No engagement series yet.</div>
+          )}
+        </div>
+
+        <div className="rounded-[18px] border border-newTableBorder bg-newTableHeader p-[18px] shadow-sm">
+          <div className="text-[15px] font-medium text-newTableText">Top content types</div>
+          <div className="mt-[6px] text-[12px] text-newTableText/50">Best formats by average engagement.</div>
+          {contentTypes?.items?.length ? (
+            <div className="mt-[14px] flex flex-col gap-[8px]">
+              {contentTypes.items.slice(0, 5).map((item) => (
+                <div key={item.format} className="rounded-[12px] bg-newBgColorInner p-[12px]">
+                  <div className="flex items-center justify-between gap-[10px]">
+                    <div className="text-[13px] font-medium capitalize text-newTableText">{item.format}</div>
+                    <div className="text-[12px] text-newTableText/60">{formatPercent(item.avgEngagementRate)}</div>
+                  </div>
+                  <div className="mt-[5px] text-[12px] text-newTableText/50">{item.posts} posts analyzed</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-[14px] text-[13px] text-newTableText/55">No content type data yet.</div>
+          )}
         </div>
       </section>
 

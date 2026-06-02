@@ -7,6 +7,8 @@ providers:
     apiKeyEnv: DEEPSEEK_API_KEY
     models:
       growthInsights: deepseek-chat
+      contentGeneration: deepseek-chat
+      threadSplit: deepseek-chat
 
   minimax:
     type: openai-compatible
@@ -14,6 +16,8 @@ providers:
     apiKeyEnv: MINIMAX_API_KEY
     models:
       growthInsights: MiniMax-M1
+      contentGeneration: MiniMax-M1
+      threadSplit: MiniMax-M1
 
   openai:
     type: openai-compatible
@@ -21,3 +25,5 @@ providers:
     apiKeyEnv: OPENAI_API_KEY
     models:
       growthInsights: gpt-4.1
+      contentGeneration: gpt-4.1
+      threadSplit: gpt-4.1
